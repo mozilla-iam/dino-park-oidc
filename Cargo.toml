@@ -1,0 +1,22 @@
+[package]
+name = "dino-park-oidc"
+version = "0.0.1"
+authors = ["Florian Merz <me@fiji-flo.de>"]
+edition = "2018"
+
+[dependencies]
+shared-expiry-get = "0.1"
+failure = "0.1"
+failure_derive = "0.1"
+biscuit = "0.4"
+url = "2.1"
+serde = "1.0.80"
+serde_json = "1.0.32"
+serde_derive = "1.0.80"
+chrono = "0.4"
+reqwest = { version = "0.10", features = ["json"] }
+log = "0.4"
+futures = "0.3"
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["macros"] }
