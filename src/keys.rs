@@ -1,9 +1,9 @@
+use crate::error::OidcError;
 use biscuit::jwk::JWK;
 use biscuit::Empty;
 use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
-use failure::Error;
 use futures::future::TryFutureExt;
 use log::debug;
 use log::info;
@@ -26,7 +26,7 @@ pub struct RemoteKeys {
 }
 
 impl RemoteKeysProvider {
-    pub fn new(jwk_url_str: &str) -> Result<Self, Error> {
+    pub fn new(jwk_url_str: &str) -> Result<Self, OidcError> {
         let jwk_url = jwk_url_str.parse()?;
         Ok(RemoteKeysProvider { jwk_url })
     }
@@ -52,9 +52,9 @@ impl Expiry for RemoteKeys {
     }
 }
 
-async fn get_keys(url: Url) -> Result<Vec<JWK<Empty>>, Error> {
+async fn get_keys(url: Url) -> Result<Vec<JWK<Empty>>, OidcError> {
     let client = Client::new().get(url);
-    let res = client.send().map_err(Error::from).await?;
-    let mut keys: Value = res.json().map_err(Error::from).await?;
+    let res = client.send().map_err(OidcError::from).await?;
+    let mut keys: Value = res.json().map_err(OidcError::from).await?;
     serde_json::from_value::<Vec<JWK<Empty>>>(keys["keys"].take()).map_err(Into::into)
 }

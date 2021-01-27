@@ -6,7 +6,6 @@ use biscuit::jwk::AlgorithmParameters;
 use biscuit::jws;
 use biscuit::Empty;
 use biscuit::ValidationOptions;
-use failure::Error;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use log::debug;
@@ -38,7 +37,7 @@ struct ProviderJson {
 }
 
 impl Provider {
-    pub async fn from_issuer(issuer: &str) -> Result<Self, Error> {
+    pub async fn from_issuer(issuer: &str) -> Result<Self, OidcError> {
         let well_known =
             Url::parse(issuer).and_then(|u| u.join(".well-known/openid-configuration"))?;
         let res: Value = get(well_known).await?.error_for_status()?.json().await?;
@@ -46,7 +45,7 @@ impl Provider {
         let p: ProviderJson = serde_json::from_value(res.clone())?;
 
         if p.issuer.trim_end_matches('/') != issuer.trim_end_matches('/') {
-            return Err(OidcError::IssuerMismatch.into());
+            return Err(OidcError::IssuerMismatch);
         }
 
         Ok(Provider {
@@ -64,17 +63,17 @@ impl Provider {
     pub fn verify_and_decode(
         &self,
         token: String,
-    ) -> BoxFuture<'static, Result<biscuit::ClaimsSet<Value>, Error>> {
+    ) -> BoxFuture<'static, Result<biscuit::ClaimsSet<Value>, OidcError>> {
         debug!("verify and decode");
         self.remote_key_set
             .get()
             .map(move |res| match res {
                 Ok(remote) => {
-                    let jwk = remote.keys.get(0).ok_or_else(|| OidcError::NoRemoteKeys)?;
+                    let jwk = remote.keys.get(0).ok_or(OidcError::NoRemoteKeys)?;
                     let rsa = if let AlgorithmParameters::RSA(x) = &jwk.algorithm {
                         x
                     } else {
-                        return Err(OidcError::InvalidRemoteKeys.into());
+                        return Err(OidcError::InvalidRemoteKeys);
                     };
                     let c: jws::Compact<biscuit::ClaimsSet<Value>, Empty> =
                         jws::Compact::new_encoded(&token);
@@ -91,7 +90,7 @@ impl Provider {
 pub fn check(
     item: &biscuit::ClaimsSet<Value>,
     validation_options: ValidationOptions,
-) -> Result<(), Error> {
+) -> Result<(), OidcError> {
     item.registered
         .validate(validation_options)
         .map_err(Into::into)
@@ -103,7 +102,6 @@ mod test {
     use biscuit::ClaimsSet;
     use biscuit::RegisteredClaims;
     use biscuit::SingleOrMultiple;
-    use biscuit::StringOrUri;
     use serde_json::Value;
 
     #[tokio::test]
@@ -133,9 +131,7 @@ mod test {
         let claim_set = ClaimsSet {
             registered: {
                 RegisteredClaims {
-                    audience: Some(SingleOrMultiple::Single(StringOrUri::String(
-                        "foo".to_string(),
-                    ))),
+                    audience: Some(SingleOrMultiple::Single("foo".to_string())),
                     ..Default::default()
                 }
             },

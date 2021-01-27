@@ -1,13 +1,25 @@
-use failure::Fail;
+use thiserror::Error;
 
-#[derive(Fail, Debug)]
+#[derive(Error, Debug)]
 pub enum OidcError {
-    #[fail(display = "Mismatching issuer.")]
+    #[error("Mismatching issuer.")]
     IssuerMismatch,
-    #[fail(display = "Invalid token.")]
+    #[error("Invalid token.")]
     ValidationError,
-    #[fail(display = "Remote keys missing.")]
+    #[error("Remote keys missing.")]
     NoRemoteKeys,
-    #[fail(display = "Invalid remote keys.")]
+    #[error("Invalid remote keys.")]
     InvalidRemoteKeys,
+    #[error("reqwest error: {0}")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("serde error: {0}")]
+    Serde(#[from] serde_json::Error),
+    #[error("invalid url: {0}")]
+    InvalidUrl(#[from] url::ParseError),
+    #[error("jwt error: {0}")]
+    JwtError(#[from] biscuit::errors::Error),
+    #[error("jwt validation error: {0}")]
+    JwtValidation(#[from] biscuit::errors::ValidationError),
+    #[error("remote get error: {0}")]
+    RemoteGet(#[from] shared_expiry_get::ExpiryGetError),
 }
